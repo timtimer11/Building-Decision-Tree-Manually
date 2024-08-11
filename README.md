@@ -5,6 +5,7 @@ Manually building decision tree from scratch helps to get a deeper understanding
 It's a binary tree that contains split conditions inside the **nodes**, and predictions inside the **leafs**.
 
 **Node:** The condition for branching.
+
 **Leaf:** A node that does not split further and contains the prediction value/class.
 
 ## Information Gain
