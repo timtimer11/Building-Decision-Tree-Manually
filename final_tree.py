@@ -1,10 +1,7 @@
-from __future__ import annotations
-
-import os
 from dataclasses import dataclass
+from typing import Tuple
 
 import numpy as np
-import pandas as pd
 
 
 @dataclass
@@ -35,8 +32,8 @@ class Node:
     n_samples: int = None
     value: int = None
     mse: float = None
-    left: Node = None
-    right: Node = None
+    left: "Node" = None
+    right: "Node" = None
 
 
 @dataclass
@@ -64,7 +61,7 @@ class DecisionTreeRegressor:
     max_depth: int
     min_samples_split: int = 2
 
-    def fit(self, X: np.ndarray, y: np.ndarray) -> DecisionTreeRegressor:
+    def fit(self, X: np.ndarray, y: np.ndarray) -> "DecisionTreeRegressor":
         """
         Build a decision tree regressor from the training set (X, y).
 
@@ -84,26 +81,6 @@ class DecisionTreeRegressor:
         self.tree_ = self._split_node(X, y)
         return self
 
-    def predict(self, X: np.ndarray) -> np.ndarray:
-        """
-        Predict regression target for X.
-
-        Parameters
-        ----------
-        X : array-like, shape (n_samples, n_features)
-            The input samples.
-
-        Returns
-        -------
-        y : array of shape (n_samples,)
-            The predicted values.
-        """
-        return [self._predict_one_sample(features) for features in X]
-
-    def as_json(self) -> str:
-        """Return the decision tree as a JSON string."""
-        return self._as_json(self.tree_) or ""
-
     def _mse(self, y: np.ndarray) -> float:
         """Compute the mse impurity criterion for a given set of target values."""
         return np.mean((y - np.mean(y)) ** 2)
@@ -114,7 +91,7 @@ class DecisionTreeRegressor:
         den = y_left.size + y_right.size
         return num / den
 
-    def _best_split(self, X: np.ndarray, y: np.ndarray) -> tuple[int, float]:
+    def _best_split(self, X: np.ndarray, y: np.ndarray) -> Tuple[int, float]:
         """Find the best split for a node."""
         node_size = y.size
         if node_size < self.min_samples_split:
@@ -158,81 +135,3 @@ class DecisionTreeRegressor:
                 node.right = self._split_node(X_right, y_right, depth + 1)
 
         return node
-
-    def _predict_one_sample(self, features: np.ndarray) -> int:
-        """Predict the target value of a single sample."""
-        node = self.tree_
-        while node.left:
-            if features[node.feature] < node.threshold:
-                node = node.left
-            else:
-                node = node.right
-        return node.value
-
-    def _as_json(self, node: Node) -> str:
-        """Return the decision tree as a JSON string."""
-        if node is None:
-            return None
-
-        mse = round(node.mse, 2) if node.mse is not None else None
-        if node.left is None and node.right is None:
-            return (
-                f'{{"value": {node.value}, '
-                f'"n_samples": {node.n_samples}, "mse": {mse}}}'
-            )
-        else:
-            return (
-                f'{{"feature": {node.feature}, "threshold": {node.threshold}, '
-                f'"n_samples": {node.n_samples}, "mse": {mse}, '
-                f'"left": {self._as_json(node.left)}, '
-                f'"right": {self._as_json(node.right)}}}'
-            )
-
-
-def run():
-    """Run the example."""
-
-    DEPTH = 3
-    PRINT_TREE = True
-
-    df = pd.read_csv(
-        os.path.join(os.path.dirname(__file__), "..", "data", "sample.csv")
-    )
-
-    df = df.reset_index(drop=True)
-    data = df.drop("delay_days", axis=1)
-    target = df["delay_days"]
-
-    # Split the dataset into training and test sets
-    np.random.seed(42)
-    idx = data.index.values
-    np.random.shuffle(idx)
-    train_idx = idx[: int(0.8 * len(idx))]
-    test_idx = idx[int(0.8 * len(idx)) :]
-
-    X_train, X_test = data.iloc[train_idx], data.iloc[test_idx]
-    y_train, y_test = target.iloc[train_idx], target.iloc[test_idx]
-
-    X_train = X_train.values
-    X_test = X_test.values
-    y_train = y_train.values
-    y_test = y_test.values
-
-    # Train the decision tree regressor
-    tree = DecisionTreeRegressor(max_depth=DEPTH)
-    tree.fit(X_train, y_train)
-
-    # Predict the targets of the test set
-    y_pred = tree.predict(X_test)
-
-    # Evaluate the performance of the decision tree regressor
-    rmse = np.sqrt(np.mean((y_pred - y_test) ** 2))
-    print("RMSE:", round(rmse, 2))
-
-    # Print the decision tree
-    if PRINT_TREE:
-        print(tree.as_json())
-
-
-if __name__ == "__main__":
-    run()
